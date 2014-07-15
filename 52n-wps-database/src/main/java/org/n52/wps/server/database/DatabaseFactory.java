@@ -57,9 +57,12 @@ public class DatabaseFactory implements IDatabase
             propertyChangeListener =  new PropertyChangeListener(){
                 public void propertyChange(
                     final PropertyChangeEvent propertyChangeEvent) {
-                        //shutdown Database connection and instance
-                        DatabaseFactory.database.shutdown();
-                        DatabaseFactory.database = null;
+						if (null != DatabaseFactory.database) {
+							//shutdown Database connection and instance
+							DatabaseFactory.database.shutdown();
+							DatabaseFactory.database = null;
+						}
+                        
                         DatabaseFactory.getDatabase();
                         LOGGER.info(this.getClass().getName() + ": Received Property Change Event: " + propertyChangeEvent.getPropertyName());
                     }
