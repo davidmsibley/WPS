@@ -28,6 +28,7 @@
  */
 package org.n52.wps.server.database;
 
+import com.google.common.base.Strings;
 import java.io.File;
 import java.io.InputStream;
 import java.sql.Connection;
@@ -36,15 +37,15 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Calendar;
+import javax.xml.ws.Response;
+import org.n52.wps.commons.PropertyUtil;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.n52.wps.DatabaseDocument.Database;
-import org.n52.wps.PropertyDocument.Property;
 import org.n52.wps.commons.WPSConfig;
 
 /**
-* An anstract-layer to the databases. 
+* An abstract-layer to the databases. 
 * 
 * @author Janne Kovanen
 * 
@@ -98,6 +99,8 @@ public abstract class AbstractDatabase implements IDatabase{
 	protected static final int UPDATE_COLUMN_REQUEST_ID = 2;
 
 	protected static final int INSERT_COLUMN_MIME_TYPE = 5;
+	
+	private static final String baseResultURLTemplate = "http://%s:%s/%s/RetrieveResultServlet?id=";
 	
 	/** get access to the global logger. */
 	private static Logger LOGGER = LoggerFactory.getLogger(AbstractDatabase.class);
@@ -282,35 +285,24 @@ public abstract class AbstractDatabase implements IDatabase{
 	 */	
     @Override
 	public String generateRetrieveResultURL(String id) {
-		return "http://"
-                + WPSConfig.getInstance().getWPSConfig().getServer().getHostname() + ":"
-                + WPSConfig.getInstance().getWPSConfig().getServer().getHostport() + "/"
-                + WPSConfig.getInstance().getWPSConfig().getServer().getWebappPath() + "/"
-                + "RetrieveResultServlet?id=";   // TODO:  Parameterize this... Execution Context..?
+		String serverUrl = String.format(baseResultURLTemplate,
+			WPSConfig.getInstance().getWPSConfig().getServer().getHostname(), 
+			WPSConfig.getInstance().getWPSConfig().getServer().getHostport(), 
+			WPSConfig.getInstance().getWPSConfig().getServer().getWebappPath());
+		return serverUrl + id;
 	}
 	
-	public abstract Connection getConnection();
-	public abstract String getConnectionURL();
+	protected abstract Connection getConnection();
+	protected abstract void closeConnection(Connection con);
+	protected abstract String getConnectionURL();
 	
 	/**
 	 * Returns the name of the database.
 	 */
     @Override
 	public String getDatabaseName() {
-		
-		String dbName = getDatabaseProperties(PROPERTY_NAME_DATABASE_NAME);
-		return (dbName == null || dbName.equals("")) ? "wps" : dbName;
-	}
-	
-	static String getDatabaseProperties(String propertyName) {
-		Database database = WPSConfig.getInstance().getWPSConfig().getServer().getDatabase();
-		Property[] dbProperties = database.getPropertyArray();
-		for(Property property : dbProperties){
-			if(property.getName().equalsIgnoreCase(propertyName)){
-				return property.getStringValue();
-			}
-		}
-		return null;
+		String dbName = DatabaseUtil.getDatabasePropertyUtil().extractString(PROPERTY_NAME_DATABASE_NAME, null);
+		return (Strings.isNullOrEmpty(dbName)) ? "wps" : dbName;
 	}
 
 	/** Returns the path to the database.
@@ -318,39 +310,26 @@ public abstract class AbstractDatabase implements IDatabase{
 	 * @note The path has no file separator in the end of the file.
 	 */
 	protected static String getDatabasePath() {
-		String dbPath = getDatabaseProperties(PROPERTY_NAME_DATABASE_PATH);
-		String dbName = getDatabaseProperties(PROPERTY_NAME_DATABASE_NAME);
-		String dbTypeName = getDatabaseProperties(PROPERTY_NAME_DATABASE);
+		PropertyUtil prop = DatabaseUtil.getDatabasePropertyUtil();
+		String dbPath = prop.extractString(PROPERTY_NAME_DATABASE_PATH, null);
+		String dbName = prop.extractString(PROPERTY_NAME_DATABASE_NAME, null);
+		String dbTypeName = prop.extractString(PROPERTY_NAME_DATABASE, null);
 		
-		if (dbPath == null || dbPath.compareTo("") == 0) {
+		if (Strings.isNullOrEmpty(dbPath)) {
             // TODO:  parameterize base path
 			dbPath = System.getProperty("java.io.tmpdir", ".") + File.separator + "Databases";
-			if(dbTypeName!=null && !dbTypeName.equals("")) {
+			if(!Strings.isNullOrEmpty(dbTypeName)) {
 				dbPath += File.separator + dbTypeName.toUpperCase();
 			} else {
 				dbPath += File.separator + "DERBY";
 			}
-			if(dbName!=null && !dbName.equals("")) {
+			if(!Strings.isNullOrEmpty(dbName)) {
 				dbPath += File.separator + dbName.toUpperCase();
 			} else {
 				dbPath += File.separator + "wps";
 			}
 		}
 		return dbPath;
-	}
-	
-	/**
-	 * @throws Exception 
-	 * 
-	 */
-    @Override
-	public void shutdown() {
-		try {
-			getConnection().close();
-		} catch (SQLException e) {
-			
-			LOGGER.error("Problem encountered when closing the SQL connection", e);
-		}
 	}
 	
     @Override

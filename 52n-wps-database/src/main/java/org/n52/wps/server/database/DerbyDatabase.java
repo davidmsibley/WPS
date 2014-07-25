@@ -155,8 +155,13 @@ public class DerbyDatabase extends AbstractDatabase {
 	public Connection getConnection() {
 		return DerbyDatabase.conn;
 	}
-    
-    @Override
+	
+	@Override
+	public void closeConnection(Connection con) {
+		//NO-OP due to single-connection model
+	}
+	
+	@Override
 	public String getConnectionURL() {
 		return DerbyDatabase.connectionURL;
 	}

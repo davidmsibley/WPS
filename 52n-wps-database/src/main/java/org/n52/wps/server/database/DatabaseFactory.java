@@ -28,12 +28,14 @@
  */
 package org.n52.wps.server.database;
 
+import com.google.common.base.Strings;
 import java.beans.PropertyChangeEvent;
 import java.beans.PropertyChangeListener;
 import java.io.File;
 import java.io.InputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import javax.xml.ws.Response;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,9 +75,9 @@ public class DatabaseFactory implements IDatabase
         if(DatabaseFactory.database == null) {
 			try {
 				String databaseClassName = 
-					AbstractDatabase.getDatabaseProperties(PROPERTY_NAME_DATABASE_CLASS_NAME);
+					DatabaseUtil.getDatabasePropertyUtil().extractString(PROPERTY_NAME_DATABASE_CLASS_NAME, null);
 				// if databaseClassName is not defined take derby.
-				if(databaseClassName == null || databaseClassName.equals("")) {
+				if(Strings.isNullOrEmpty(databaseClassName)) {
 					LOGGER.info("Database class name was not found in properties. FlatFileDatabase will be used.");
 					databaseClassName = "org.n52.wps.server.database.FlatFileDatabase";
 				}
